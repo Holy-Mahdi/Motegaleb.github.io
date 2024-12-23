@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>متقلب ایمنی</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        /* دارک مود - پس‌زمینه و رنگ‌ها */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #121212;
+            color: #eaeaea;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            flex-direction: column;
+        }
+
+        h2 {
+            font-weight: 600;
+            color: #fff;
+            margin-bottom: 20px;
+        }
+
+        /* فرم */
+        form {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        label {
+            font-size: 14px;
+            color: #bbb;
+            margin-bottom: 8px;
+        }
+
+        textarea {
+            padding: 10px;
+            font-size: 14px;
+            background-color: #333;
+            color: #fff;
+            border: 1px solid #444;
+            border-radius: 8px;
+            resize: none;
+            margin-bottom: 16px;
+            width: 100%;
+        }
+
+        button {
+            padding: 10px;
+            font-size: 16px;
+            background-color: #3498db;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #2980b9;
+        }
+
+        /* پاسخ */
+        .response {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        .similarity-bar {
+            width: 100%;
+            background-color: #444;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .similarity-bar div {
+            height: 8px;
+            border-radius: 8px;
+            background-color: #2ecc71;
+        }
+
+        /* طراحی واکنشگرا */
+        @media (max-width: 600px) {
+            textarea {
+                font-size: 16px;
+                padding: 12px;
+            }
+
+            button {
+                font-size: 18px;
+                padding: 12px;
+            }
+
+            h2 {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h2>پیدا کردن جواب</h2>
+    <form id="quizForm">
+        <label for="questionInput">سوال رو وارد کن:</label>
+        <textarea id="questionInput" name="question" rows="3" required></textarea>
+        <button type="submit">جستجو</button>
+    </form>
+    <div id="response" class="response"></div>
+
+    <script>
+        const questions = [
+            { question: "نگهداری در محیط با تهویه مناسب جزو کدام یک از عناوین است؟", answer: "عناوین ایمنی" },
+            { question: "مقدار ماده‌ای که مصرف آن منجر به مرگ 50 درصد نمونه‌های آزمایشگاهی می‌شود، چه خطری را نشان می‌دهد؟", answer: "LD 50" },
+            { question: "از بین نقطه آتش و نقطه اشتعال کدام دمای بیشتری دارد و در چه حالتی خطرناک‌تر است؟", answer: "نقطه آتش دمای بیشتری دارد" }
+        ];
+
+        function levenshtein(str1, str2) {
+            const len1 = str1.length;
+            const len2 = str2.length;
+            const dp = Array(len1 + 1).fill().map(() => Array(len2 + 1).fill(0));
+
+            for (let i = 0; i <= len1; i++) dp[i][0] = i;
+            for (let j = 0; j <= len2; j++) dp[0][j] = j;
+
+            for (let i = 1; i <= len1; i++) {
+                for (let j = 1; j <= len2; j++) {
+                    const cost = str1[i - 1] === str2[j - 1] ? 0 : 1;
+                    dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
+                }
+            }
+
+            return dp[len1][len2];
+        }
+
+        function findClosestQuestion(input, questions) {
+            let closestMatch = null;
+            let highestSimilarity = 0;
+
+            questions.forEach(q => {
+                const distance = levenshtein(input.toLowerCase(), q.question.toLowerCase());
+                const similarity = 1 - (distance / Math.max(input.length, q.question.length));
+                if (similarity > highestSimilarity) {
+                    highestSimilarity = similarity;
+                    closestMatch = q;
+                }
+            });
+
+            return { closestMatch, similarity: highestSimilarity };
+        }
+
+        const form = document.getElementById('quizForm');
+        const responseDiv = document.getElementById('response');
+
+        form.addEventListener('submit', function(event) {
+            event.preventDefault();
+
+            const userQuestion = document.getElementById('questionInput').value.trim();
+
+            if (userQuestion.length < 5) {
+                responseDiv.textContent = "لطفاً سوال طولانی‌تری وارد کنید.";
+                return;
+            }
+
+            const { closestMatch, similarity } = findClosestQuestion(userQuestion, questions);
+
+            if (closestMatch) {
+                const similarityPercentage = (similarity * 100).toFixed(2);
+                responseDiv.innerHTML = `
+                    <p>نزدیک ترین سوال: <b>${closestMatch.question}</b></p>
+                    <p>جواب: <b>${closestMatch.answer}</b></p>
+                    <p>درصد تشابه: <b>${similarityPercentage}%</b></p>
+                    <div class="similarity-bar">
+                        <div style="width: ${similarityPercentage}%;"></div>
+                    </div>
+                `;
+            } else {
+                responseDiv.textContent = "ببخشید همچین سوالی پیدا نشد.";
+            }
+        });
+    </script>
+</body>
+</html>
